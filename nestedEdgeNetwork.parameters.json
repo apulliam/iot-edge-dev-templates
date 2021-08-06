@@ -1,0 +1,24 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "virtualNetworkName": {
+      "value": "edge-network"
+    },
+    "parentEdgeSubnetName": {
+      "value": "parent-edge"
+    },
+    "nestedEdgeSubnetName": {
+      "value": "nested-edge"
+    },
+    "addressPrefix": {
+      "value": "10.0.0.0/16"
+    },
+    "parentEdgeSubnetPrefix": {
+      "value": "10.0.1.0/24"
+    },
+    "nestedEdgeSubnetPrefix": {
+      "value": "10.0.2.0/24"
+    }
+  }
+}

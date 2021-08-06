@@ -1,0 +1,207 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "virtualNetworkName": { "type": "string" },
+    "parentEdgeSubnetName": { "type": "string" },
+    "nestedEdgeSubnetName": { "type": "string" },
+    "addressPrefix": { "type": "string" },
+    "parentEdgeSubnetPrefix": { "type": "string" },
+    "nestedEdgeSubnetPrefix": { "type": "string" }
+  },
+  "variables": {
+    "parentEdgeNsgName": "[concat(parameters('parentEdgeSubnetName'),'-nsg')]",
+    "nestedEdgeNsgName": "[concat(parameters('nestedEdgeSubnetName'),'-nsg')]",
+
+    "PortSsh": "22",
+    "PortAmqp": "5671",
+    "PortMqtts": "8883",
+    "PortHttp": "8000",
+    "PortHttps": "443"
+
+  },
+  "resources": [
+
+    {
+      "name": "[variables('nestedEdgeNsgName')]",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2018-08-01",
+      "location": "[resourceGroup().location]",
+      "tags": {},
+      "properties": {
+        "securityRules": [
+          {
+            "name": "ToRemove_Allow_Machine_Build",
+            "properties": {
+              "description": "Remove, only used for custom script execution",
+              "protocol": "*",
+              "sourcePortRange": "*",
+              "destinationPortRange": "*",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 202,
+              "direction": "Outbound"
+            }
+          },
+          {
+            "name": "Allow_SSH_Management",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "[variables('PortSsh')]",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 220,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "Deny_All_Other_Inbound",
+            "properties": {
+              "description": "Deny All Other Inbound",
+              "protocol": "*",
+              "sourcePortRange": "*",
+              "destinationPortRange": "*",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Deny",
+              "priority": 250,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "Allow_Outbound_To_ParentEdgeSubnet",
+            "properties": {
+              "description": "Allow Outbound to Parent subnet",
+              "protocol": "*",
+              "sourcePortRange": "*",
+              "destinationPortRanges": [
+                "[variables('PortHttps')]",
+                "[variables('PortHttp')]",
+                "[variables('PortMqtts')]",
+                "[variables('PortAmqp')]"
+
+              ],
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "[parameters('parentEdgeSubnetPrefix')]",
+              "access": "Allow",
+              "priority": 210,
+              "direction": "Outbound"
+            }
+          },
+          {
+            "name": "Deny_All_Other_Outbound",
+            "properties": {
+              "description": "Deny All Other Outbound",
+              "protocol": "*",
+              "sourcePortRange": "*",
+              "destinationPortRange": "*",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Deny",
+              "priority": 240,
+              "direction": "Outbound"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[variables('parentEdgeNsgName')]",
+      "apiVersion": "2020-11-01",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "Allow_SSH_Management",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "[variables('PortSsh')]",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 205,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "Allow_Inbound_From_NestedEdgeSubnet",
+            "properties": {
+              "description": "Allow Inbound From NestedEdge subnet",
+              "protocol": "*",
+              "sourcePortRange": "*",
+              "destinationPortRanges": [
+                "[variables('PortHttps')]",
+                "[variables('PortHttp')]",
+                "[variables('PortMqtts')]",
+                "[variables('PortAmqp')]"
+
+              ],
+              "sourceAddressPrefix": "[parameters('nestedEdgeSubnetPrefix')]",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 210,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "Deny_All_Other_Inbound",
+            "properties": {
+              "description": "Deny All Other Inbound",
+              "protocol": "*",
+              "sourcePortRange": "*",
+              "destinationPortRange": "*",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Deny",
+              "priority": 250,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "2020-11-01",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[parameters('virtualNetworkName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('addressPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[parameters('parentEdgesubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('parentEdgeSubnetPrefix')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups/',variables('parentEdgeNsgName'))]"
+              }
+            }
+          },
+          {
+            "name": "[parameters('nestedEdgeSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('nestedEdgeSubnetPrefix')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups/',variables('nestedEdgeNsgName'))]"
+              }
+            }
+          }
+        ]
+      }
+
+
+    }
+  ],
+  "outputs": {
+
+  }
+}
