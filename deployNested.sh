@@ -1,9 +1,6 @@
 #!/bin/bash
 
-# load required variable assignments
-source .env
-
-# exit on erro
+# exit on error
 set -e
 
 # verify required variables are set
@@ -13,10 +10,16 @@ if [[
    -z ${EDGE_VM_SUBSCRIPTION+x} ||
    -z ${RESOURCE_GROUP_LOCATION+x} ||
    -z ${ADMIN_USER_NAME+x} ||
-   -z ${UNIQUE_DNS_PREFIX+x} 
+   -z ${NETWORK_RESOURCE_GROUP_NAME+x} ||
+   -z ${PARENT_EDGE_RESOURCE_GROUP_NAME+x} ||
+   -z ${NESTED_EDGE_RESOURCE_GROUP_NAME+x} ||
+   -z ${NESTED_EDGE_VM_NAME+x} ||
+   -z ${PARENT_EDGE_VM_NAME+x} ||
+   -z ${NESTED_EDGE_DNS_NAME+x} ||
+   -z ${PARENT_EDGE_DNS_NAME+x} 
    ]];
 then 
-  echo "Required environment variables not set. Please run setNestedEdgeEnv.sh first."
+  echo "Required environment variables not set. See README.MD for instructions."
   exit 1
 fi
 
@@ -26,30 +29,26 @@ iot_hub_host_name=$IOT_HUB_NAME".azure-devices.net"
 az group create \
   --subscription "${EDGE_VM_SUBSCRIPTION}" \
   --name "${NETWORK_RESOURCE_GROUP_NAME}" \
-  --location "${RESOURCE_GROUP_LOCATION}" \
-  --output none
+  --location "${RESOURCE_GROUP_LOCATION}" 
 
 # create parent edge resource group
 az group create \
   --subscription "${EDGE_VM_SUBSCRIPTION}" \
   --name "${PARENT_EDGE_RESOURCE_GROUP_NAME}" \
-  --location "${RESOURCE_GROUP_LOCATION}" \
-  --output none
+  --location "${RESOURCE_GROUP_LOCATION}" 
 
 # create nested edge resource group
 az group create \
   --subscription "${EDGE_VM_SUBSCRIPTION}" \
   --name "${NESTED_EDGE_RESOURCE_GROUP_NAME}" \
-  --location "${RESOURCE_GROUP_LOCATION}" \
-  --output none
+  --location "${RESOURCE_GROUP_LOCATION}" 
 
 # create vnet
 az deployment group create \
   --subscription "${EDGE_VM_SUBSCRIPTION}" \
   --resource-group "${NETWORK_RESOURCE_GROUP_NAME}" \
   --template-file "nestedEdgeNetwork.json" \
-  --parameters "nestedEdgeNetwork.parameters.json" \
-  --output none
+  --parameters "nestedEdgeNetwork.parameters.json"
 
 # create parent edge VM and read private IP and FQDN output into string variable
 output_str=$(az deployment group create \
@@ -61,11 +60,10 @@ output_str=$(az deployment group create \
       virtualNetworkResourceGroup="${NETWORK_RESOURCE_GROUP_NAME}" \
       vmName="${PARENT_EDGE_VM_NAME}" \
       adminUsername="${ADMIN_USER_NAME}" \
-      customData=""#@cloud-init.txt \
       sshKeyData="$(< ~/.ssh/id_rsa.pub)" \
       dnsNameForPublicIP="${PARENT_EDGE_DNS_NAME}" \
   --query "properties.outputs.[privateIp.value, fqdn.value]" \
-  --output tsv)
+  --output tsv | tee /dev/tty)
 
 # convert string output to array
 readarray -t parent_edge_output <<<"${output_str}"
@@ -84,11 +82,10 @@ output_str=$(az deployment group create \
       virtualNetworkResourceGroup="${NETWORK_RESOURCE_GROUP_NAME}" \
       vmName="${NESTED_EDGE_VM_NAME}" \
       adminUsername="${ADMIN_USER_NAME}" \
-      customData=""#@cloud-init.txt \
       sshKeyData="$(< ~/.ssh/id_rsa.pub)" \
       dnsNameForPublicIP="${NESTED_EDGE_DNS_NAME}" \
   --query "properties.outputs.[privateIp.value, fqdn.value]" \
-  --output tsv)
+  --output tsv | tee /dev/tty)
 
 # convert string output to array
 readarray -t nested_edge_output <<<"${output_str}"
@@ -158,3 +155,6 @@ scp -o StrictHostKeyChecking=accept-new ./${NESTED_EDGE_DEVICE_ID}.zip ${ADMIN_U
 cd ../..
 az vm run-command invoke --command-id RunShellScript --parameters  "ADMIN_USER_NAME=${ADMIN_USER_NAME}" "DEVICE_ID=${PARENT_EDGE_DEVICE_ID}" --scripts @install-edge.sh --name "${PARENT_EDGE_VM_NAME}" --resource-group "${PARENT_EDGE_RESOURCE_GROUP_NAME}" --subscription "${EDGE_VM_SUBSCRIPTION}"
 az vm run-command invoke --command-id RunShellScript --parameters  "ADMIN_USER_NAME=${ADMIN_USER_NAME}" "DEVICE_ID=${NESTED_EDGE_DEVICE_ID}" --scripts @install-edge.sh --name "${NESTED_EDGE_VM_NAME}" --resource-group "${NESTED_EDGE_RESOURCE_GROUP_NAME}" --subscription "${EDGE_VM_SUBSCRIPTION}"
+
+# finally delete temporary rule for software installation on nested edge to lock it down
+az network nsg rule delete  --name "ToRemove_Allow_Machine_Build" --nsg-name "${NESTED_EDGE_VM_NAME}-nsg" --resource-group "${NETWORK_RESOURCE_GROUP_NAME}" --subscription "${EDGE_VM_SUBSCRIPTION}"

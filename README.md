@@ -1,3 +1,7 @@
 # iot-edge-dev-templates
 
-This repository contains Azure ARM templates for creating Azure VM configuration for testing Azure IoT Edge.  
+This repository contains Azure ARM templates for creating Azure VM's for testing Azure IoT Edge configurations.  The ARM templates were originally created to test the Azure IoT Nested Edge feature, but can also be used to create single Azure IoT Edge VM's and base Ubuntu VM's.  
+
+The Azure IoT Product Group maintains a respository with an ARM template to [deploy Azure IoT Edge](https://github.com/Azure/iotedge-vm-deploy/) on a standalone VNET.  The [Azure IoT Nested Edge feature tutorial](https://docs.microsoft.com/en-us/azure/iot-edge/tutorial-nested-iot-edge) references this repository to create a simpled nested Edge configuration with 2 VM's on separate VNET's.  Since the Edge VM's connect to each other over public IP addresses, this configuration can't be used to test or validate Nested Edge support for proxying nested Edge communication through the parent Edge device on a locked-down network.  The IoT Product Team also has a [industrial IoT repository](https://github.com/Azure-Samples/iot-edge-for-iiot) with a [Purdue](https://github.com/Azure-Samples/iot-edge-for-iiot/blob/master/PurdueNetwork.md) Network Nested Edge configuration, with firewalls between network layers. However, as this configuration deploys 7 VM's, it's not the easiest environement for developer testing.
+
+This ARM templates in this repo were primarily developed to provide an easy way to deploy and test the Azure IoT Nested Edge feature, by providing a real Purdue style network configuration with only 2 VM's and automating the manual setup steps in the Azure IoT Nested Edge feature tutorial.

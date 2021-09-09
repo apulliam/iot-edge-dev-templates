@@ -170,6 +170,10 @@
       "type": "Microsoft.Network/virtualNetworks",
       "name": "[parameters('virtualNetworkName')]",
       "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('nestedEdgeNsgName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('parentEdgeNsgName'))]"
+      ],
       "properties": {
         "addressSpace": {
           "addressPrefixes": [

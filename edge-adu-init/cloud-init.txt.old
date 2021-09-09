@@ -26,18 +26,19 @@ apt:
         =J6gs
         -----END PGP PUBLIC KEY BLOCK----- 
 packages:
-  - zip
   - moby-cli
   - moby-engine
 runcmd:
-  - |
+    |
       set -x
       (
         # Wait for docker daemon to start
         while [ $(ps -ef | grep -v grep | grep docker | wc -l) -le 0 ]; do 
           sleep 3
         done
-  
         apt install aziot-edge -y
+        apt install deviceupdate-agent -y
+        apt install deliveryoptimization-plugin-apt -y
+        systemctl restart adu-agent
       ) &
 
