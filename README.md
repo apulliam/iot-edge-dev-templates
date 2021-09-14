@@ -30,7 +30,11 @@ After cloning the repo locally, you need to set some Bash environment variables 
 - ADMIN_USER_NAME - the name you want to use as the admin account on the Edge VM's.  It's convenient to use the same username from WSL or your Azure cloud shell as SSH uses your local account by default which allows for shorter SSH command.
 - UNIQUE_DNS_PREFIX - string of your choosing which will be used a prefix for the VM names on their public IP addresses.  While the template is designed to test a locked down Nested Edge environment for IoT traffic, both the parent and nested Edge VM's have a dynamic public IP address and DNS name for developer access.
 
-2. Run source .env-nested_edge to load the variable into your local Bash shell.
-3. Run az login in your local Bash shell. 
-4. Make the deployNested.sh script executable with chmod+x run in your local Bash shell
+2. Run *source .env-nested_edge* to load the variable into your local Bash shell.
+3. Run *az login* in your local Bash shell. 
+4. Make the deployNested.sh script executable with *chmod+x* run in your local Bash shell
+
+## Understanding the template output and created results
+
+The deployNested.sh script first creates 3 resource groups in the VM subscription - one for the Azure Virtual Network and one each for the parent and nested Azure IoT Edge VM's.  It then uses the nestedEdgeNetwork.json ARM template to create an Azure Virtual Network, edge-network, with 2 subnets - parent-edge and nested-edge.  Each subnet has a Network Security Group to restrict traffic to/from the subnet to simulate a locked down Nested Edge configuration.
 
